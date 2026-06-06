@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TECHFEST 2049 // 3D PORTAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --neon-blue:#00f5ff;--neon-purple:#bf00ff;--neon-green:#00ff41;--neon-red:#ff0040;
+  --dark-bg:#030609;--panel-bg:rgba(0,245,255,0.03);--border-glow:rgba(0,245,255,0.18);--text-dim:#4a7a80;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--dark-bg);color:#c8e8ec;font-family:'Rajdhani',sans-serif;overflow-x:hidden;cursor:none}
+
+/* ── CANVAS (fixed bg) ─────────────────────── */
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ── CURSOR ────────────────────────────────── */
+.cursor{position:fixed;width:10px;height:10px;background:var(--neon-blue);border-radius:50%;
+  pointer-events:none;z-index:9999;transform:translate(-50%,-50%);
+  box-shadow:0 0 10px var(--neon-blue),0 0 22px var(--neon-blue);mix-blend-mode:screen;transition:width .2s,height .2s}
+.cursor-ring{position:fixed;width:34px;height:34px;border:1px solid rgba(0,245,255,.5);border-radius:50%;
+  pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .12s ease}
+
+/* ── SCANLINE OVERLAY ──────────────────────── */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:100;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.12) 2px,rgba(0,0,0,.12) 4px);
+  animation:scanroll 10s linear infinite}
+@keyframes scanroll{0%{background-position:0 0}100%{background-position:0 100px}}
+
+/* ── NAV ───────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:center;justify-content:space-between;
+  padding:18px 48px;border-bottom:1px solid var(--border-glow);background:rgba(3,6,9,.85);backdrop-filter:blur(14px)}
+.nav-logo{font-family:'Orbitron',monospace;font-weight:900;font-size:1.1rem;letter-spacing:.3em;
+  color:var(--neon-blue);text-shadow:0 0 20px var(--neon-blue),0 0 40px rgba(0,245,255,.3)}
+.nav-logo span{color:var(--neon-purple);text-shadow:0 0 20px var(--neon-purple)}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{font-family:'Share Tech Mono',monospace;font-size:.75rem;letter-spacing:.15em;color:var(--text-dim);
+  text-decoration:none;text-transform:uppercase;transition:color .2s,text-shadow .2s;position:relative}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;
+  background:var(--neon-blue);transform:scaleX(0);transition:transform .25s;box-shadow:0 0 8px var(--neon-blue)}
+.nav-links a:hover{color:var(--neon-blue);text-shadow:0 0 10px var(--neon-blue)}
+.nav-links a:hover::after{transform:scaleX(1)}
+.nav-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--neon-green)}
+.status-dot{width:6px;height:6px;background:var(--neon-green);border-radius:50%;box-shadow:0 0 8px var(--neon-green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── HERO ──────────────────────────────────── */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:120px 48px 80px;position:relative;z-index:10}
+.hero-badge{display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(0,255,65,.3);
+  padding:6px 18px;margin-bottom:32px;font-family:'Share Tech Mono',monospace;font-size:.7rem;
+  letter-spacing:.2em;color:var(--neon-green);background:rgba(0,255,65,.05);text-transform:uppercase;
+  animation:fadein .8s ease forwards}
+.hero-badge::before{content:'';width:6px;height:6px;background:var(--neon-green);border-radius:50%;
+  box-shadow:0 0 8px var(--neon-green);animation:pulse 1.5s infinite}
+.hero-title{font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(3.5rem,10vw,9rem);
+  line-height:.9;letter-spacing:-.02em;color:var(--neon-blue);
+  text-shadow:0 0 40px rgba(0,245,255,.6),0 0 80px rgba(0,245,255,.3);margin-bottom:12px;position:relative}
+.hero-year{font-family:'Orbitron',monospace;font-size:clamp(1.2rem,3vw,2.2rem);color:transparent;
+  -webkit-text-stroke:1px rgba(191,0,255,.7);letter-spacing:.5em;margin-bottom:36px}
+.hero-sub{font-family:'Share Tech Mono',monospace;font-size:.88rem;color:var(--text-dim);letter-spacing:.1em;
+  max-width:540px;line-height:1.9;margin-bottom:48px}
+.hero-sub .hl{color:var(--neon-blue)}
+.hero-cta-row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:64px}
+.hero-stats-bar{display:flex;border:1px solid var(--border-glow);overflow:hidden;background:rgba(0,0,0,.3);
+  backdrop-filter:blur(8px)}
+.hstat{flex:1;padding:18px 28px;border-right:1px solid var(--border-glow);background:rgba(0,245,255,.02);
+  min-width:120px;position:relative;overflow:hidden;transition:background .3s}
+.hstat:last-child{border-right:none}
+.hstat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--neon-blue),transparent);transform:scaleX(0);transition:transform .4s}
+.hstat:hover{background:rgba(0,245,255,.05)}
+.hstat:hover::before{transform:scaleX(1)}
+.hstat-num{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;color:var(--neon-blue);
+  text-shadow:0 0 15px rgba(0,245,255,.5);display:block;line-height:1;margin-bottom:4px}
+.hstat-label{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase}
+.scroll-indicator{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;letter-spacing:.2em;color:rgba(0,245,255,.35);animation:scrollbob 2.5s ease-in-out infinite}
+@keyframes scrollbob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(7px)}}
+@keyframes fadein{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── BUTTONS ───────────────────────────────── */
+.btn-primary{display:inline-flex;align-items:center;gap:12px;padding:14px 36px;background:transparent;
+  border:1px solid var(--neon-blue);color:var(--neon-blue);font-family:'Orbitron',monospace;font-size:.75rem;
+  font-weight:700;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;cursor:none;
+  position:relative;overflow:hidden;transition:all .3s;box-shadow:0 0 20px rgba(0,245,255,.12)}
+.btn-primary::before{content:'';position:absolute;inset:0;background:var(--neon-blue);transform:translateX(-101%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:-1}
+.btn-primary:hover{color:var(--dark-bg);box-shadow:0 0 45px rgba(0,245,255,.5),0 0 80px rgba(0,245,255,.2)}
+.btn-primary:hover::before{transform:translateX(0)}
+.btn-secondary{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;background:transparent;
+  border:1px solid rgba(191,0,255,.4);color:rgba(191,0,255,.85);font-family:'Orbitron',monospace;
+  font-size:.72rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;
+  cursor:none;transition:all .3s}
+.btn-secondary:hover{border-color:var(--neon-purple);color:var(--neon-purple);box-shadow:0 0 32px rgba(191,0,255,.3)}
+
+/* ── SHARED SECTION ────────────────────────── */
+section{padding:100px 48px;position:relative;z-index:10}
+.section-tag{font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:.3em;color:var(--neon-purple);
+  text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.section-tag::before{content:'';width:32px;height:1px;background:var(--neon-purple);box-shadow:0 0 8px var(--neon-purple)}
+.section-title{font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(2rem,4vw,3.2rem);
+  color:#e8f8ff;line-height:1.1;margin-bottom:14px}
+.section-title em{font-style:normal;color:var(--neon-blue);text-shadow:0 0 20px rgba(0,245,255,.4)}
+.section-header{text-align:center;max-width:700px;margin:0 auto 70px}
+.section-desc{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--text-dim);letter-spacing:.05em;line-height:1.8}
+.h-sep{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--border-glow) 30%,var(--border-glow) 70%,transparent)}
+
+/* ── EVENTS GRID ───────────────────────────── */
+.events-bg{background:linear-gradient(180deg,var(--dark-bg) 0%,#050d12 50%,var(--dark-bg) 100%)}
+.events-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1200px;margin:0 auto}
+
+/* 3D TILT CARD */
+.event-card-3d{position:relative;background:rgba(0,245,255,.018);border:1px solid rgba(0,245,255,.1);
+  padding:40px 32px;cursor:none;overflow:hidden;transition:border-color .3s,box-shadow .3s;will-change:transform}
+.event-card-3d::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--card-color,var(--neon-blue)),transparent);
+  transform:scaleX(0);transition:transform .5s;transform-origin:left}
+.event-card-3d::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 120% 120% at var(--mx,50%) var(--my,50%),rgba(0,245,255,.06) 0%,transparent 60%);
+  pointer-events:none;opacity:0;transition:opacity .3s}
+.event-card-3d:hover{border-color:rgba(0,245,255,.3);box-shadow:0 0 40px rgba(0,245,255,.08)}
+.event-card-3d:hover::before{transform:scaleX(1)}
+.event-card-3d:hover::after{opacity:1}
+.card-num{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(0,245,255,.28);letter-spacing:.2em;margin-bottom:18px}
+.card-icon{font-size:2.4rem;margin-bottom:18px;display:block;filter:drop-shadow(0 0 12px currentColor)}
+.card-title{font-family:'Orbitron',monospace;font-weight:700;font-size:.92rem;letter-spacing:.05em;
+  color:var(--card-color,var(--neon-blue));margin-bottom:14px}
+.card-desc{font-size:.88rem;color:#5a8a92;line-height:1.75;font-weight:300;margin-bottom:22px}
+.card-meta{display:flex;justify-content:space-between;align-items:center;padding-top:18px;
+  border-top:1px solid rgba(0,245,255,.07);font-family:'Share Tech Mono',monospace;font-size:.63rem}
+.card-date{color:var(--neon-green)}
+.card-prize{color:var(--neon-purple);font-weight:700}
+
+/* ── SPEAKERS ──────────────────────────────── */
+.speakers-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:28px;max-width:1100px;margin:0 auto}
+.speaker-card{text-align:center;padding:44px 22px;border:1px solid rgba(0,245,255,.08);
+  background:rgba(0,245,255,.018);position:relative;overflow:hidden;transition:border-color .3s;
+  will-change:transform;cursor:none}
+.speaker-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--neon-blue),transparent);transform:scaleX(0);transition:transform .5s}
+.speaker-card:hover{border-color:rgba(0,245,255,.28)}
+.speaker-card:hover::before{transform:scaleX(1)}
+.speaker-avatar-wrap{position:relative;width:100px;height:100px;margin:0 auto 26px}
+.speaker-avatar{width:100px;height:100px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(0,245,255,.1),rgba(191,0,255,.1));border:1px solid rgba(0,245,255,.3);
+  display:flex;align-items:center;justify-content:center;font-size:2.4rem;position:relative;z-index:2}
+.sp-ring{position:absolute;border-radius:50%;border:1px solid transparent;pointer-events:none}
+.sp-ring-1{width:120px;height:120px;top:-10px;left:-10px;border-top-color:var(--neon-blue);border-right-color:var(--neon-blue);animation:spin 4s linear infinite}
+.sp-ring-2{width:138px;height:138px;top:-19px;left:-19px;border-bottom-color:var(--neon-purple);border-left-color:var(--neon-purple);animation:spin 7s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.speaker-name{font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;color:#e8f8ff;letter-spacing:.04em;margin-bottom:6px}
+.speaker-role{font-family:'Share Tech Mono',monospace;font-size:.63rem;color:var(--neon-purple);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.speaker-desc{font-size:.83rem;color:#5a8a92;line-height:1.65;font-weight:300}
+
+/* ── SCHEDULE ──────────────────────────────── */
+.schedule-section{background:#050d12}
+.schedule-timeline{max-width:900px;margin:0 auto;position:relative}
+.schedule-timeline::before{content:'';position:absolute;left:112px;top:0;bottom:0;width:1px;
+  background:linear-gradient(180deg,transparent,var(--border-glow) 15%,var(--border-glow) 85%,transparent)}
+.timeline-day{margin-bottom:56px}
+.day-header{font-family:'Orbitron',monospace;font-size:.72rem;color:var(--neon-purple);letter-spacing:.2em;
+  text-transform:uppercase;margin-bottom:24px;padding:8px 16px;border:1px solid rgba(191,0,255,.2);
+  background:rgba(191,0,255,.05);display:inline-block}
+.tl-row{display:flex;gap:32px;align-items:flex-start;margin-bottom:18px;padding-left:132px;
+  position:relative;transition:transform .3s;will-change:transform;cursor:none}
+.tl-row::before{content:'';position:absolute;left:108px;top:50%;width:8px;height:8px;
+  background:var(--neon-blue);border-radius:50%;transform:translateY(-50%);box-shadow:0 0 10px var(--neon-blue);z-index:2}
+.tl-time{position:absolute;left:0;font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--text-dim);
+  width:98px;text-align:right;padding-top:5px}
+.tl-content{flex:1;background:rgba(0,245,255,.025);border:1px solid rgba(0,245,255,.07);
+  padding:14px 20px;transition:border-color .3s,box-shadow .3s}
+.tl-row:hover .tl-content{border-color:rgba(0,245,255,.22);box-shadow:0 0 20px rgba(0,245,255,.05)}
+.tl-title{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:1rem;color:#c8e8ec;margin-bottom:3px}
+.tl-sub{font-family:'Share Tech Mono',monospace;font-size:.63rem;color:var(--text-dim);letter-spacing:.04em}
+
+/* ── CTA ───────────────────────────────────── */
+.cta-section{text-align:center;padding:120px 48px;position:relative;overflow:hidden}
+#ctaCanvas{position:absolute;inset:0;z-index:0;pointer-events:none}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:800px;height:400px;
+  background:radial-gradient(ellipse,rgba(0,245,255,.06) 0%,transparent 70%);pointer-events:none}
+.cta-border{position:absolute;inset:40px;border:1px solid rgba(0,245,255,.07);pointer-events:none}
+.cta-border::before,.cta-border::after{content:'';position:absolute;width:40px;height:40px;border-color:var(--neon-blue);border-style:solid;opacity:.5}
+.cta-border::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+.cta-border::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+.cta-title{font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(2.4rem,5vw,4.5rem);
+  color:#e8f8ff;line-height:1;margin-bottom:22px;position:relative;z-index:1}
+.cta-title .blue{color:var(--neon-blue);text-shadow:0 0 30px rgba(0,245,255,.5)}
+.cta-sub{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--text-dim);letter-spacing:.1em;
+  max-width:480px;margin:0 auto 48px;position:relative;z-index:1}
+.cta-buttons{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;position:relative;z-index:1}
+
+/* ── FOOTER ────────────────────────────────── */
+footer{border-top:1px solid var(--border-glow);padding:40px 48px;display:flex;align-items:center;
+  justify-content:space-between;background:rgba(0,0,0,.5);position:relative;z-index:10}
+.footer-logo{font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;color:var(--text-dim);letter-spacing:.2em}
+.footer-copy{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(74,122,128,.45);letter-spacing:.1em}
+.footer-links{display:flex;gap:24px;list-style:none}
+.footer-links a{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--text-dim);text-decoration:none;letter-spacing:.1em;text-transform:uppercase;transition:color .2s}
+.footer-links a:hover{color:var(--neon-blue)}
+
+/* ── GLITCH ────────────────────────────────── */
+.glitch{position:relative}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;inset:0;font:inherit;color:inherit}
+.glitch::before{text-shadow:-3px 0 var(--neon-red);animation:g1 4s infinite;clip-path:polygon(0 22%,100% 22%,100% 40%,0 40%)}
+.glitch::after{text-shadow:3px 0 var(--neon-purple);animation:g2 4s infinite;clip-path:polygon(0 62%,100% 62%,100% 78%,0 78%)}
+@keyframes g1{0%,87%,100%{transform:translate(0)}89%{transform:translate(-4px,1px)}93%{transform:translate(4px,-1px)}97%{transform:translate(0)}}
+@keyframes g2{0%,84%,100%{transform:translate(0)}86%{transform:translate(4px,2px)}90%{transform:translate(-4px)}95%{transform:translate(0)}}
+
+/* ── SCROLL REVEAL ─────────────────────────── */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .75s ease,transform .75s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── MOBILE ────────────────────────────────── */
+@media(max-width:960px){
+  nav{padding:16px 24px}.nav-links{display:none}
+  .events-grid{grid-template-columns:1fr}.speakers-grid{grid-template-columns:repeat(2,1fr)}
+  section{padding:80px 24px}
+  .schedule-timeline::before{display:none}.tl-row{padding-left:0;flex-direction:column}.tl-time{position:static;width:auto;text-align:left}
+  footer{flex-direction:column;gap:20px;text-align:center}.footer-links{justify-content:center}
+}
+@media(max-width:600px){.speakers-grid{grid-template-columns:1fr}.hero-stats-bar{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<!-- Custom Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- Three.js BG Canvas -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- ══ NAV ══════════════════════════════════ -->
+<nav>
+  <div class="nav-logo">TECH<span>FEST</span></div>
+  <ul class="nav-links">
+    <li><a href="#events">Events</a></li>
+    <li><a href="#speakers">Speakers</a></li>
+    <li><a href="#schedule">Schedule</a></li>
+    <li><a href="#register">Register</a></li>
+  </ul>
+  <div class="nav-status"><div class="status-dot"></div>3D PORTAL ACTIVE</div>
+</nav>
+
+<!-- ══ HERO ══════════════════════════════════ -->
+<section class="hero" id="hero">
+  <div class="hero-badge">TECHFEST 2049 // 3D INTERACTIVE PORTAL v1.0</div>
+  <h1 class="hero-title glitch" data-text="TECHFEST">TECHFEST</h1>
+  <p class="hero-year">2 &nbsp; 0 &nbsp; 4 &nbsp; 9</p>
+  <p class="hero-sub">
+    Where <span class="hl">human potential</span> meets the frontier of technology.<br>
+    48 hours. Six arenas. Infinite possibilities.
+  </p>
+  <div class="hero-cta-row">
+    <a href="#register" class="btn-primary">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L13 7L7 13M1 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      REGISTER NOW
+    </a>
+    <a href="#events" class="btn-secondary">EXPLORE EVENTS</a>
+  </div>
+  <div class="hero-stats-bar">
+    <div class="hstat"><span class="hstat-num" id="hs1">0</span><span class="hstat-label">Participants</span></div>
+    <div class="hstat"><span class="hstat-num" id="hs2">₹0</span><span class="hstat-label">Prize Pool</span></div>
+    <div class="hstat"><span class="hstat-num" id="hs3">0</span><span class="hstat-label">Events</span></div>
+    <div class="hstat"><span class="hstat-num" id="hs4">0</span><span class="hstat-label">Colleges</span></div>
+  </div>
+  <div class="scroll-indicator">↓ &nbsp; SCROLL TO EXPLORE &nbsp; ↓</div>
+</section>
+
+<div class="h-sep"></div>
+
+<!-- ══ EVENTS ════════════════════════════════ -->
+<section class="events-bg" id="events">
+  <div class="section-header reveal">
+    <div class="section-tag">Competition Arena</div>
+    <h2 class="section-title">EVENTS &amp; <em>CHALLENGES</em></h2>
+    <p class="section-desc">Six high-stakes challenges. One festival. Choose your battlefield and compete for glory.</p>
+  </div>
+  <div class="events-grid">
+
+    <div class="event-card-3d reveal" style="--card-color:#00f5ff">
+      <div class="card-num">// 01</div>
+      <span class="card-icon">🧠</span>
+      <div class="card-title">AI HACKATHON</div>
+      <div class="card-desc">Build AI-powered solutions in 24 hours. Machine learning, neural nets, generative AI — any stack, one massive problem to solve.</div>
+      <div class="card-meta"><span class="card-date">DAY 1–2</span><span class="card-prize">₹50,000</span></div>
+    </div>
+
+    <div class="event-card-3d reveal" style="--card-color:#bf00ff">
+      <div class="card-num">// 02</div>
+      <span class="card-icon">🤖</span>
+      <div class="card-title">ROBOTICS CHALLENGE</div>
+      <div class="card-desc">Engineer autonomous robots to navigate obstacle courses and battle arenas. Hardware meets code in the ultimate engineering showdown.</div>
+      <div class="card-meta"><span class="card-date">DAY 2</span><span class="card-prize">₹40,000</span></div>
+    </div>
+
+    <div class="event-card-3d reveal" style="--card-color:#ff0040">
+      <div class="card-num">// 03</div>
+      <span class="card-icon">🔐</span>
+      <div class="card-title">CYBER CTF</div>
+      <div class="card-desc">48-hour Capture The Flag war game. Exploit, decrypt, and dominate across cryptography, reverse engineering, and web exploitation vectors.</div>
+      <div class="card-meta"><span class="card-date">DAY 1–3</span><span class="card-prize">₹35,000</span></div>
+    </div>
+
+    <div class="event-card-3d reveal" style="--card-color:#00ff41">
+      <div class="card-num">// 04</div>
+      <span class="card-icon">🎮</span>
+      <div class="card-title">GAME DEV JAM</div>
+      <div class="card-desc">Design, develop, and ship a playable game in 48 hours. Unity, Godot, or raw code — any engine, any genre. Judges play every submission live.</div>
+      <div class="card-meta"><span class="card-date">DAY 1–3</span><span class="card-prize">₹25,000</span></div>
+    </div>
+
+    <div class="event-card-3d reveal" style="--card-color:#00f5ff">
+      <div class="card-num">// 05</div>
+      <span class="card-icon">🎨</span>
+      <div class="card-title">UI/UX SPRINT</div>
+      <div class="card-desc">From wireframe to interactive prototype in 6 hours. Solve a real problem using design thinking, Figma, and brutal deadline pressure.</div>
+      <div class="card-meta"><span class="card-date">DAY 2</span><span class="card-prize">₹20,000</span></div>
+    </div>
+
+    <div class="event-card-3d reveal" style="--card-color:#bf00ff">
+      <div class="card-num">// 06</div>
+      <span class="card-icon">💡</span>
+      <div class="card-title">OPEN SOURCE SPRINT</div>
+      <div class="card-desc">Fork, fix, and merge. Contribute meaningful improvements to real open-source repositories under time pressure. Your PR is your score.</div>
+      <div class="card-meta"><span class="card-date">DAY 3</span><span class="card-prize">₹15,000</span></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="h-sep"></div>
+
+<!-- ══ SPEAKERS ═══════════════════════════════ -->
+<section id="speakers">
+  <div class="section-header reveal">
+    <div class="section-tag">Keynote Voices</div>
+    <h2 class="section-title">MEET THE <em>SPEAKERS</em></h2>
+    <p class="section-desc">Minds reshaping the future — live on stage, in conversation with you.</p>
+  </div>
+  <div class="speakers-grid">
+
+    <div class="speaker-card reveal">
+      <div class="speaker-avatar-wrap">
+        <div class="sp-ring sp-ring-1"></div><div class="sp-ring sp-ring-2"></div>
+        <div class="speaker-avatar">👩‍🔬</div>
+      </div>
+      <div class="speaker-name">DR. YARA VOSS</div>
+      <div class="speaker-role">AI Research // DeepMind</div>
+      <div class="speaker-desc">Pioneer of neuromorphic computing. Her brain-inspired AI architectures have redefined what machines can perceive and learn.</div>
+    </div>
+
+    <div class="speaker-card reveal">
+      <div class="speaker-avatar-wrap">
+        <div class="sp-ring sp-ring-1"></div><div class="sp-ring sp-ring-2"></div>
+        <div class="speaker-avatar">🧑‍💻</div>
+      </div>
+      <div class="speaker-name">MARCUS KANE</div>
+      <div class="speaker-role">Robotics // Boston Dynamics</div>
+      <div class="speaker-desc">Lead engineer on ATLAS-X. Builds robots that think, adapt, and learn from their environment without explicit programming.</div>
+    </div>
+
+    <div class="speaker-card reveal">
+      <div class="speaker-avatar-wrap">
+        <div class="sp-ring sp-ring-1"></div><div class="sp-ring sp-ring-2"></div>
+        <div class="speaker-avatar">👩‍💻</div>
+      </div>
+      <div class="speaker-name">DR. PRIYA CHAKRABORTY</div>
+      <div class="speaker-role">Quantum Computing // IBM</div>
+      <div class="speaker-desc">Architect of IBM's 1000-qubit processor. Translating quantum advantage into real-world cryptography and drug discovery.</div>
+    </div>
+
+    <div class="speaker-card reveal">
+      <div class="speaker-avatar-wrap">
+        <div class="sp-ring sp-ring-1"></div><div class="sp-ring sp-ring-2"></div>
+        <div class="speaker-avatar">🧑‍🚀</div>
+      </div>
+      <div class="speaker-name">ALEX CHEN</div>
+      <div class="speaker-role">Cybersecurity // CrowdStrike</div>
+      <div class="speaker-desc">Ex-NSA zero-day hunter turned founder. Created AI-driven threat systems now protecting critical infrastructure across 60 nations.</div>
+    </div>
+
+  </div>
+</section>
+
+<div class="h-sep"></div>
+
+<!-- ══ SCHEDULE ════════════════════════════════ -->
+<section class="schedule-section" id="schedule">
+  <div class="section-header reveal">
+    <div class="section-tag">Event Timeline</div>
+    <h2 class="section-title">3-DAY <em>SCHEDULE</em></h2>
+  </div>
+  <div class="schedule-timeline reveal">
+
+    <div class="timeline-day">
+      <div class="day-header">// DAY 01 — MARCH 14, 2049</div>
+      <div class="tl-row"><div class="tl-time">09:00 AM</div><div class="tl-content"><div class="tl-title">Grand Inauguration Ceremony</div><div class="tl-sub">MAIN AUDITORIUM // KEYNOTE: DR. YARA VOSS — "THE SENTIENT MACHINE"</div></div></div>
+      <div class="tl-row"><div class="tl-time">11:00 AM</div><div class="tl-content"><div class="tl-title">AI Hackathon — Problem Statement Release</div><div class="tl-sub">INNOVATION HUB // TEAMS LOCK IN &amp; IDEATION BEGINS</div></div></div>
+      <div class="tl-row"><div class="tl-time">02:00 PM</div><div class="tl-content"><div class="tl-title">Cyber CTF — Servers Go Live</div><div class="tl-sub">CYBER ARENA // 48-HOUR COUNTDOWN BEGINS</div></div></div>
+      <div class="tl-row"><div class="tl-time">06:00 PM</div><div class="tl-content"><div class="tl-title">Game Dev Jam Kick-off</div><div class="tl-sub">DEV STUDIO // THEME ANNOUNCED LIVE ON STAGE</div></div></div>
+    </div>
+
+    <div class="timeline-day">
+      <div class="day-header">// DAY 02 — MARCH 15, 2049</div>
+      <div class="tl-row"><div class="tl-time">10:00 AM</div><div class="tl-content"><div class="tl-title">Robotics Arena Opens</div><div class="tl-sub">ROBO DOME // QUALIFYING HEATS COMMENCE</div></div></div>
+      <div class="tl-row"><div class="tl-time">01:00 PM</div><div class="tl-content"><div class="tl-title">UI/UX Sprint — 6-Hour Clock Starts</div><div class="tl-sub">DESIGN LAB // BRIEF DROPS AT 1PM SHARP. FIGMA OR DIE.</div></div></div>
+      <div class="tl-row"><div class="tl-time">07:00 PM</div><div class="tl-content"><div class="tl-title">Keynote: Marcus Kane on Sentient Robotics</div><div class="tl-sub">MAIN AUDITORIUM // LIVE ATLAS-X DEMO INCLUDED</div></div></div>
+    </div>
+
+    <div class="timeline-day">
+      <div class="day-header">// DAY 03 — MARCH 16, 2049</div>
+      <div class="tl-row"><div class="tl-time">10:00 AM</div><div class="tl-content"><div class="tl-title">Open Source Sprint Finals</div><div class="tl-sub">COLLAB ZONE // LIVE PR REVIEW BY PROJECT MAINTAINERS</div></div></div>
+      <div class="tl-row"><div class="tl-time">02:00 PM</div><div class="tl-content"><div class="tl-title">AI Hackathon Demos &amp; Judging</div><div class="tl-sub">MAIN STAGE // TOP 10 TEAMS PRESENT TO PANEL</div></div></div>
+      <div class="tl-row"><div class="tl-time">06:00 PM</div><div class="tl-content"><div class="tl-title">Grand Award Ceremony &amp; Closing</div><div class="tl-sub">MAIN AUDITORIUM // TOTAL PRIZE POOL: ₹1,85,000</div></div></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="h-sep"></div>
+
+<!-- ══ CTA ════════════════════════════════════ -->
+<section class="cta-section" id="register">
+  <canvas id="ctaCanvas"></canvas>
+  <div class="cta-glow"></div>
+  <div class="cta-border"></div>
+  <p class="section-tag" style="justify-content:center;margin-bottom:24px">// Initialization Protocol</p>
+  <h2 class="cta-title reveal">ARE YOU<br>READY TO<br><span class="blue">BUILD?</span></h2>
+  <p class="cta-sub reveal">48 hours. 6 events. Unlimited upside. Secure your slot before enrollment closes.</p>
+  <div class="cta-buttons reveal">
+    <a href="#" class="btn-primary" id="registerBtn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L13 7L7 13M1 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      REGISTER NOW
+    </a>
+    <a href="#events" class="btn-secondary">BROWSE EVENTS</a>
+  </div>
+</section>
+
+<!-- ══ FOOTER ═════════════════════════════════ -->
+<footer>
+  <div class="footer-logo">TECH<span style="color:var(--neon-purple)">FEST</span> 2049</div>
+  <div class="footer-copy">© 2049 TECHFEST CORP // ALL RIGHTS RESERVED</div>
+  <ul class="footer-links">
+    <li><a href="#">Privacy</a></li>
+    <li><a href="#">Terms</a></li>
+    <li><a href="#">Contact</a></li>
+  </ul>
+</footer>
+
+<!-- ══ SCRIPTS ════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/ScrollTrigger.min.js"></script>
+<script>
+// ════════════════════════════════════════════
+//  CUSTOM CURSOR
+// ════════════════════════════════════════════
+const cur = document.getElementById('cursor');
+const rng = document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px'});
+(function animRing(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;rng.style.left=rx+'px';rng.style.top=ry+'px';requestAnimationFrame(animRing)})();
+document.querySelectorAll('a,button,.event-card-3d,.speaker-card,.hstat').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{rng.style.width='50px';rng.style.height='50px';rng.style.borderColor='rgba(0,245,255,.85)';rng.style.background='rgba(0,245,255,.04)'});
+  el.addEventListener('mouseleave',()=>{rng.style.width='34px';rng.style.height='34px';rng.style.borderColor='rgba(0,245,255,.5)';rng.style.background='transparent'});
+});
+
+// ════════════════════════════════════════════
+//  THREE.JS BACKGROUND SCENE
+// ════════════════════════════════════════════
+const canvas3 = document.getElementById('bgCanvas');
+const scene   = new THREE.Scene();
+const W0 = window.innerWidth, H0 = window.innerHeight;
+const cam = new THREE.PerspectiveCamera(60, W0/H0, 0.1, 1000);
+cam.position.set(0, 0, 36);
+
+const renderer = new THREE.WebGLRenderer({canvas:canvas3, antialias:true, alpha:true});
+renderer.setSize(W0, H0);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+// --- Torus Knot (hero centrepiece) ---
+const tkGeo = new THREE.TorusKnotGeometry(10, 2.6, 220, 22);
+const tkMat = new THREE.MeshBasicMaterial({color:0x00f5ff, wireframe:true, transparent:true, opacity:.5});
+const torus = new THREE.Mesh(tkGeo, tkMat);
+scene.add(torus);
+
+// --- Outer wireframe sphere ---
+const spGeo = new THREE.SphereGeometry(20, 26, 26);
+const spMat = new THREE.MeshBasicMaterial({color:0xbf00ff, wireframe:true, transparent:true, opacity:.055});
+const sphere = new THREE.Mesh(spGeo, spMat);
+scene.add(sphere);
+
+// --- Floating icosahedrons ---
+const floaters = [];
+for(let i=0;i<8;i++){
+  const geo = new THREE.IcosahedronGeometry(1.4+Math.random()*2, 1);
+  const mat = new THREE.MeshBasicMaterial({color:i%2===0?0x00f5ff:0xbf00ff, wireframe:true, transparent:true, opacity:.22+Math.random()*.28});
+  const m   = new THREE.Mesh(geo,mat);
+  const ang = (i/8)*Math.PI*2;
+  const rad = 22+Math.random()*30;
+  m.position.set(Math.cos(ang)*rad,(Math.random()-.5)*44,Math.sin(ang)*rad-16);
+  m._rx = (Math.random()-.5)*.024; m._ry = (Math.random()-.5)*.024;
+  m._fa = .018+Math.random()*.038; m._fp = Math.random()*Math.PI*2;
+  scene.add(m); floaters.push(m);
+}
+
+// --- DNA / twin-helix rings ---
+const ringGrp = new THREE.Group();
+for(let i=0;i<3;i++){
+  const rg = new THREE.TorusGeometry(16+i*7,.08,8,80);
+  const rm = new THREE.MeshBasicMaterial({color:i%2===0?0x00f5ff:0xbf00ff, transparent:true, opacity:.1-i*.025});
+  const r  = new THREE.Mesh(rg,rm);
+  r.rotation.x = Math.PI/3+i*.4; r.rotation.z = i*.6;
+  ringGrp.add(r);
+}
+scene.add(ringGrp);
+
+// --- Particle field ---
+const PC = 5000;
+const pp = new Float32Array(PC*3), pc = new Float32Array(PC*3);
+for(let i=0;i<PC;i++){
+  pp[i*3]   = (Math.random()-.5)*280;
+  pp[i*3+1] = (Math.random()-.5)*280;
+  pp[i*3+2] = (Math.random()-.5)*280;
+  const r=Math.random();
+  if(r>.65){pc[i*3]=0;pc[i*3+1]=.96;pc[i*3+2]=1;}
+  else if(r>.35){pc[i*3]=.75;pc[i*3+1]=0;pc[i*3+2]=1;}
+  else{pc[i*3]=0;pc[i*3+1]=1;pc[i*3+2]=.25;}
+}
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(pp,3));
+pGeo.setAttribute('color',new THREE.BufferAttribute(pc,3));
+const pMat = new THREE.PointsMaterial({size:.17,vertexColors:true,transparent:true,opacity:.72});
+const pts  = new THREE.Points(pGeo,pMat);
+scene.add(pts);
+
+// --- Grid floor ---
+const grid = new THREE.GridHelper(400,60,0x00f5ff,0x001222);
+grid.position.y=-32; grid.material.transparent=true; grid.material.opacity=.1;
+scene.add(grid);
+
+// --- Mouse & scroll ---
+let tmx=0,tmy=0,smx=0,smy=0,scrollY0=0;
+document.addEventListener('mousemove',e=>{tmx=(e.clientX/window.innerWidth-.5)*2;tmy=(e.clientY/window.innerHeight-.5)*2});
+window.addEventListener('scroll',()=>{scrollY0=window.scrollY});
+
+// --- Render loop ---
+const clk = new THREE.Clock();
+function loop3(){
+  requestAnimationFrame(loop3);
+  const t = clk.getElapsedTime();
+  smx += (tmx-smx)*.04; smy += (tmy-smy)*.04;
+
+  torus.rotation.x += .003; torus.rotation.y += .005;
+  sphere.rotation.y += .0008; sphere.rotation.x += .0004;
+  ringGrp.rotation.y += .0012; ringGrp.rotation.x += .0003;
+
+  floaters.forEach(f=>{ f.rotation.x+=f._rx; f.rotation.y+=f._ry; f.position.y+=Math.sin(t*.38+f._fp)*f._fa; });
+  pts.rotation.y += .00018;
+  pMat.opacity = .62+Math.sin(t*.35)*.12;
+
+  // Scroll-driven transforms
+  const sp = Math.min(1, scrollY0/2200);
+  torus.scale.setScalar(1-sp*.55);
+  tkMat.opacity = Math.max(.04,.5-sp*.48);
+  cam.position.y = -sp*18; cam.position.z = 36+sp*8;
+
+  // Mouse parallax
+  cam.position.x += (smx*7-cam.position.x)*.025;
+  cam.lookAt(0, cam.position.y, 0);
+  renderer.render(scene, cam);
+}
+loop3();
+
+window.addEventListener('resize',()=>{
+  const w=window.innerWidth,h=window.innerHeight;
+  cam.aspect=w/h; cam.updateProjectionMatrix();
+  renderer.setSize(w,h);
+});
+
+// ════════════════════════════════════════════
+//  GSAP + SCROLL TRIGGER
+// ════════════════════════════════════════════
+gsap.registerPlugin(ScrollTrigger);
+
+// Hero entrance
+gsap.from('.hero-title', {duration:1.3,y:70,opacity:0,ease:'power3.out',delay:.3});
+gsap.from('.hero-year',  {duration:1, y:45,opacity:0,ease:'power3.out',delay:.5});
+gsap.from('.hero-sub',   {duration:1, y:30,opacity:0,ease:'power2.out',delay:.7});
+gsap.from('.hero-badge', {duration:.8,y:20,opacity:0,ease:'power2.out',delay:.2});
+gsap.from('.hero-stats-bar',{duration:.9,y:28,opacity:0,ease:'power2.out',delay:.9});
+
+// Event cards — rotateX pop-in
+document.querySelectorAll('.event-card-3d').forEach((c,i)=>{
+  gsap.from(c,{
+    scrollTrigger:{trigger:c,start:'top 92%'},
+    duration:.85, y:55, rotateX:28, opacity:0,
+    transformPerspective:900, delay:(i%3)*.12, ease:'power3.out'
+  });
+});
+
+// Speaker cards — scale + rotateY
+document.querySelectorAll('.speaker-card').forEach((c,i)=>{
+  gsap.from(c,{
+    scrollTrigger:{trigger:c,start:'top 90%'},
+    duration:.8, scale:.82, opacity:0, rotateY:18,
+    transformPerspective:700, delay:i*.12, ease:'back.out(1.4)'
+  });
+});
+
+// Timeline rows — slide from left
+document.querySelectorAll('.tl-row').forEach((r,i)=>{
+  gsap.from(r,{
+    scrollTrigger:{trigger:r,start:'top 90%'},
+    duration:.65, x:-35, opacity:0, delay:(i%5)*.07, ease:'power2.out'
+  });
+});
+
+// CTA title
+gsap.from('.cta-title',{
+  scrollTrigger:{trigger:'.cta-title',start:'top 85%'},
+  duration:1, y:50, opacity:0, ease:'power3.out'
+});
+
+// ════════════════════════════════════════════
+//  COUNTER ANIMATION
+// ════════════════════════════════════════════
+function countTo(el,target,pre,suf,dur){
+  let v=0;const step=target/(dur/16);
+  const id=setInterval(()=>{v+=step;if(v>=target){v=target;clearInterval(id);}
+    el.textContent=pre+Math.floor(v).toLocaleString()+suf;},16);
+}
+setTimeout(()=>{
+  countTo(document.getElementById('hs1'),5000,'','+'  ,2000);
+  countTo(document.getElementById('hs2'),185000,'₹','' ,2500);
+  countTo(document.getElementById('hs3'),6,'','',1000);
+  countTo(document.getElementById('hs4'),120,'','+',1800);
+},600);
+
+// ════════════════════════════════════════════
+//  CSS 3D CARD TILT — Event Cards
+// ════════════════════════════════════════════
+document.querySelectorAll('.event-card-3d').forEach(c=>{
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect();
+    const x=((e.clientX-r.left)/r.width-.5)*2;
+    const y=((e.clientY-r.top)/r.height-.5)*2;
+    c.style.transform=`perspective(800px) rotateY(${x*15}deg) rotateX(${-y*10}deg) scale(1.03)`;
+    c.style.transition='transform .08s ease';
+    c.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');
+    c.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');
+  });
+  c.addEventListener('mouseleave',()=>{
+    c.style.transform='perspective(800px) rotateY(0) rotateX(0) scale(1)';
+    c.style.transition='transform .5s ease';
+  });
+});
+
+// CSS 3D TILT — Speaker Cards
+document.querySelectorAll('.speaker-card').forEach(c=>{
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect();
+    const x=((e.clientX-r.left)/r.width-.5)*2;
+    const y=((e.clientY-r.top)/r.height-.5)*2;
+    c.style.transform=`perspective(600px) rotateY(${x*10}deg) rotateX(${-y*8}deg) translateZ(10px)`;
+    c.style.transition='transform .08s';
+  });
+  c.addEventListener('mouseleave',()=>{
+    c.style.transform='perspective(600px) rotateY(0) rotateX(0) translateZ(0)';
+    c.style.transition='transform .5s ease';
+  });
+});
+
+// 3D HOVER — Timeline rows
+document.querySelectorAll('.tl-row').forEach(r=>{
+  r.addEventListener('mouseenter',()=>{
+    r.style.transform='perspective(600px) rotateX(-3deg) translateZ(6px) translateX(4px)';
+    r.style.transition='transform .3s ease';
+  });
+  r.addEventListener('mouseleave',()=>{
+    r.style.transform='perspective(600px) rotateX(0) translateZ(0) translateX(0)';
+    r.style.transition='transform .45s ease';
+  });
+});
+
+// ════════════════════════════════════════════
+//  CTA PARTICLE BURST (2D Canvas)
+// ════════════════════════════════════════════
+const ctaC = document.getElementById('ctaCanvas');
+const ctaX = ctaC.getContext('2d');
+function resizeCta(){ctaC.width=ctaC.parentElement.offsetWidth;ctaC.height=ctaC.parentElement.offsetHeight;}
+resizeCta(); window.addEventListener('resize',resizeCta);
+
+const ctaParts=[]; let ctaActive=false;
+function spawnBurst(x,y,n){
+  for(let i=0;i<n;i++){
+    const ang=Math.random()*Math.PI*2, spd=2+Math.random()*9;
+    const colors=['#00f5ff','#bf00ff','#00ff41','#ff0040'];
+    ctaParts.push({x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,life:1,
+      decay:.012+Math.random()*.02,sz:2+Math.random()*4,col:colors[Math.floor(Math.random()*colors.length)]});
+  }
+}
+(function animCta(){
+  requestAnimationFrame(animCta);
+  ctaX.clearRect(0,0,ctaC.width,ctaC.height);
+  if(ctaActive) spawnBurst(ctaC.width/2+(Math.random()-.5)*50, ctaC.height/2+(Math.random()-.5)*30, 3);
+  for(let i=ctaParts.length-1;i>=0;i--){
+    const p=ctaParts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vx*=.98; p.vy*=.98; p.vy+=.06; p.life-=p.decay;
+    if(p.life<=0){ctaParts.splice(i,1);continue;}
+    ctaX.save();ctaX.globalAlpha=p.life;ctaX.fillStyle=p.col;
+    ctaX.shadowColor=p.col;ctaX.shadowBlur=10;
+    ctaX.beginPath();ctaX.arc(p.x,p.y,p.sz*p.life,0,Math.PI*2);ctaX.fill();ctaX.restore();
+  }
+})();
+
+const regBtn = document.getElementById('registerBtn');
+regBtn.addEventListener('mouseenter',()=>{ctaActive=true});
+regBtn.addEventListener('mouseleave',()=>{ctaActive=false});
+regBtn.addEventListener('click',e=>{
+  e.preventDefault();
+  const rect=ctaC.getBoundingClientRect();
+  spawnBurst(e.clientX-rect.left, e.clientY-rect.top, 60);
+  // Pulse effect on torus
+  gsap.to(torus.scale,{x:1.4,y:1.4,z:1.4,duration:.25,ease:'power2.out',
+    onComplete:()=>gsap.to(torus.scale,{x:1,y:1,z:1,duration:.6,ease:'elastic.out(1,.4)'})});
+});
+
+// ════════════════════════════════════════════
+//  GLITCH RANDOM FLICKER
+// ════════════════════════════════════════════
+setInterval(()=>{
+  const g=document.querySelector('.glitch');
+  if(g&&Math.random()>.78){
+    g.style.filter=`hue-rotate(${Math.random()*90}deg) brightness(1.2)`;
+    setTimeout(()=>g.style.filter='', 70+Math.random()*120);
+  }
+},1700);
+
+// ════════════════════════════════════════════
+//  INTERSECTION OBSERVER (reveal fallback)
+// ════════════════════════════════════════════
+const obsRev = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting) e.target.classList.add('visible');});
+},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>obsRev.observe(el));
+</script>
+</body>
+</html>
